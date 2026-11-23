@@ -1,4 +1,7 @@
-export interface IdentifyResult {
+export type AIProvider = 'huggingface' | 'nyckel' | 'mock';
+
+// Raw classifier output, before we record which provider produced it.
+interface IdentifiedItem {
   item: string;
   material: string;
   confidence: number;
@@ -6,7 +9,11 @@ export interface IdentifyResult {
   instructions: string;
 }
 
-type AIProvider = 'huggingface' | 'nyckel' | 'mock';
+export interface IdentifyResult extends IdentifiedItem {
+  // Provider that produced this result ('mock' when a real provider failed
+  // and fell back). Consumed by the ai_result analytics event.
+  provider: AIProvider;
+}
 
 function getProvider(): AIProvider {
   return (import.meta.env.VITE_AI_PROVIDER as AIProvider) || 'mock';
@@ -56,7 +63,7 @@ const HF_ITEM_NAMES: Record<string, string> = {
   trash: "Non-recyclable Item",
 };
 
-async function identifyWithHuggingFace(imageData: string): Promise<IdentifyResult> {
+async function identifyWithHuggingFace(imageData: string): Promise<IdentifiedItem> {
   const token = import.meta.env.VITE_HF_API_TOKEN;
   if (!token) throw new Error("Hugging Face API token not configured");
 
@@ -97,7 +104,7 @@ async function identifyWithHuggingFace(imageData: string): Promise<IdentifyResul
   };
 }
 
-async function identifyWithNyckel(imageData: string): Promise<IdentifyResult> {
+async function identifyWithNyckel(imageData: string): Promise<IdentifiedItem> {
   const apiKey = import.meta.env.VITE_NYCKEL_API_KEY;
   if (!apiKey) throw new Error("Nyckel API key not configured");
 
@@ -136,8 +143,8 @@ async function identifyWithNyckel(imageData: string): Promise<IdentifyResult> {
   };
 }
 
-function getMockIdentification(): IdentifyResult {
-  const mockResults: IdentifyResult[] = [
+function getMockIdentification(): IdentifiedItem {
+  const mockResults: IdentifiedItem[] = [
     {
       item: "Plastic Water Bottle",
       material: "PET Plastic (#1)",
@@ -184,15 +191,15 @@ class APIService {
     try {
       switch (provider) {
         case 'huggingface':
-          return await identifyWithHuggingFace(imageData);
+          return { ...(await identifyWithHuggingFace(imageData)), provider };
         case 'nyckel':
-          return await identifyWithNyckel(imageData);
+          return { ...(await identifyWithNyckel(imageData)), provider };
         default:
-          return getMockIdentification();
+          return { ...getMockIdentification(), provider: 'mock' };
       }
     } catch (error) {
       console.warn(`[${provider}] AI identification failed, falling back to mock:`, error);
-      return getMockIdentification();
+      return { ...getMockIdentification(), provider: 'mock' };
     }
   }
 }

@@ -16,45 +16,85 @@ module.exports = {
 			},
 		},
 		extend: {
+			fontFamily: {
+				// SF Pro on Apple devices; Inter is the self-hosted stand-in elsewhere.
+				sans: [
+					'-apple-system',
+					'BlinkMacSystemFont',
+					'SF Pro Text',
+					'Inter',
+					'Segoe UI',
+					'Roboto',
+					'Helvetica Neue',
+					'sans-serif',
+				],
+				rounded: [
+					'ui-rounded',
+					'-apple-system',
+					'BlinkMacSystemFont',
+					'SF Pro Rounded',
+					'Inter',
+					'sans-serif',
+				],
+			},
 			colors: {
-				border: 'hsl(var(--border))',
-				input: 'hsl(var(--input))',
-				ring: 'hsl(var(--ring))',
-				background: 'hsl(var(--background))',
-				foreground: 'hsl(var(--foreground))',
+				border: 'rgb(var(--border) / <alpha-value>)',
+				input: 'rgb(var(--input) / <alpha-value>)',
+				ring: 'rgb(var(--ring) / <alpha-value>)',
+				background: 'rgb(var(--background) / <alpha-value>)',
+				foreground: 'rgb(var(--foreground) / <alpha-value>)',
 				primary: {
-					DEFAULT: '#2B5D3A',
-					foreground: 'hsl(var(--primary-foreground))',
+					DEFAULT: 'rgb(var(--primary) / <alpha-value>)',
+					foreground: 'rgb(var(--primary-foreground) / <alpha-value>)',
 				},
 				secondary: {
-					DEFAULT: '#4A90E2',
-					foreground: 'hsl(var(--secondary-foreground))',
+					DEFAULT: 'rgb(var(--secondary) / <alpha-value>)',
+					foreground: 'rgb(var(--secondary-foreground) / <alpha-value>)',
 				},
 				accent: {
-					DEFAULT: '#F5A623',
-					foreground: 'hsl(var(--accent-foreground))',
+					DEFAULT: 'rgb(var(--accent) / <alpha-value>)',
+					foreground: 'rgb(var(--accent-foreground) / <alpha-value>)',
 				},
 				destructive: {
-					DEFAULT: 'hsl(var(--destructive))',
-					foreground: 'hsl(var(--destructive-foreground))',
+					DEFAULT: 'rgb(var(--destructive) / <alpha-value>)',
+					foreground: 'rgb(var(--destructive-foreground) / <alpha-value>)',
 				},
 				muted: {
-					DEFAULT: 'hsl(var(--muted))',
-					foreground: 'hsl(var(--muted-foreground))',
+					DEFAULT: 'rgb(var(--muted) / <alpha-value>)',
+					foreground: 'rgb(var(--muted-foreground) / <alpha-value>)',
 				},
 				popover: {
-					DEFAULT: 'hsl(var(--popover))',
-					foreground: 'hsl(var(--popover-foreground))',
+					DEFAULT: 'rgb(var(--popover) / <alpha-value>)',
+					foreground: 'rgb(var(--popover-foreground) / <alpha-value>)',
 				},
 				card: {
-					DEFAULT: 'hsl(var(--card))',
-					foreground: 'hsl(var(--card-foreground))',
+					DEFAULT: 'rgb(var(--card) / <alpha-value>)',
+					foreground: 'rgb(var(--card-foreground) / <alpha-value>)',
 				},
+				// Brand system — the single iOS tint, themed light/dark via tokens.
+				brand: {
+					DEFAULT: 'rgb(var(--brand) / <alpha-value>)',
+					foreground: 'rgb(var(--brand-foreground) / <alpha-value>)',
+					strong: 'rgb(var(--brand-strong) / <alpha-value>)',
+					soft: 'var(--brand-soft)',
+					tint: 'var(--brand-tint)',
+				},
+				'hero-muted': 'var(--hero-muted)',
+				streak: 'rgb(var(--streak) / <alpha-value>)',
+				info: {
+					DEFAULT: 'rgb(var(--info) / <alpha-value>)',
+					soft: 'var(--info-soft)',
+				},
+				'card-edge': 'var(--card-edge)',
+			},
+			boxShadow: {
+				card: 'var(--shadow-card)',
+				float: 'var(--shadow-float)',
 			},
 			borderRadius: {
 				lg: 'var(--radius)',
-				md: 'calc(var(--radius) - 2px)',
-				sm: 'calc(var(--radius) - 4px)',
+				md: 'calc(var(--radius) - 4px)',
+				sm: 'calc(var(--radius) - 8px)',
 			},
 			keyframes: {
 				'accordion-down': {

@@ -1,10 +1,11 @@
 import { motion } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
-import { MobileCard, StatCard } from "@/components/mobile/MobileCard";
-import { BottomSheet } from "@/components/mobile/BottomSheet";
 import { Button } from "@/components/ui/button";
+import { ListGroup, ListRow } from "@/components/ui/ios";
+import { BottomSheet } from "@/components/mobile/BottomSheet";
+import { IOSHeader } from "@/components/IOSHeader";
+import { MobileCard } from "@/components/mobile/MobileCard";
 import {
-  User,
   Award,
   TrendingUp,
   Flame,
@@ -12,53 +13,40 @@ import {
   LogOut,
   Mail,
   Calendar,
-  Trophy,
-  Target,
-  Zap,
   Lock,
-  CheckCircle,
+  CheckCircle2,
   Moon,
   Sun,
-  Settings,
   BarChart3,
   PieChart as PieChartIcon,
 } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
-import { useMemo, useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { useState } from "react";
 import { useTheme } from "next-themes";
 import { getTotalEnvironmentalImpact } from "@/lib/impact";
+import { MilestoneGlyph } from "@/components/MilestoneGlyph";
 
 interface BadgeItem {
   id: string;
   name: string;
   description: string;
-  icon: string;
   unlocked: boolean;
   unlockedAt?: string;
   progress?: number;
   requirement?: number;
 }
 
-const BADGE_ICONS: Record<string, string> = {
-  "scan_1_item": "🌱",
-  "scan_10_items": "♻️",
-  "scan_50_items": "🌍",
-  "streak_7_days": "🔥",
-  "earn_100_points": "🏆",
-  "earn_1000_points": "💎",
-};
-
 const BADGE_REQUIREMENTS: Record<string, { progress: number; label: string; type: "scans" | "points" | "streak" }> = {
-  "scan_1_item": { progress: 1, label: "1 scan", type: "scans" },
-  "scan_10_items": { progress: 10, label: "10 scans", type: "scans" },
-  "scan_50_items": { progress: 50, label: "50 scans", type: "scans" },
-  "streak_7_days": { progress: 7, label: "7 day streak", type: "streak" },
-  "earn_100_points": { progress: 100, label: "100 points", type: "points" },
-  "earn_1000_points": { progress: 1000, label: "1000 points", type: "points" },
+  scan_1_item: { progress: 1, label: "1 scan", type: "scans" },
+  scan_10_items: { progress: 10, label: "10 scans", type: "scans" },
+  scan_50_items: { progress: 50, label: "50 scans", type: "scans" },
+  streak_7_days: { progress: 7, label: "7 day streak", type: "streak" },
+  earn_100_points: { progress: 100, label: "100 points", type: "points" },
+  earn_1000_points: { progress: 1000, label: "1000 points", type: "points" },
 };
 
 function getUserStatForType(type: "scans" | "points" | "streak", user: NonNullable<ReturnType<typeof useAuth>["user"]>): number {
@@ -89,16 +77,6 @@ export default function ProfilePage({ focusBadges = false }: { focusBadges?: boo
     navigate("/");
   };
 
-  const handleBadgeClick = (badge: BadgeItem) => {
-    if (badge.unlocked) {
-      setSelectedBadge(badge);
-    }
-  };
-
-  const toggleTheme = () => {
-    setTheme(theme === "dark" ? "light" : "dark");
-  };
-
   // Chart data: last 7 days activity (local-time day boundaries)
   const weeklyActivityData = useMemo(() => {
     const days = [];
@@ -107,7 +85,7 @@ export default function ProfilePage({ focusBadges = false }: { focusBadges?: boo
       date.setDate(date.getDate() - i);
       // toLocaleDateString('en-CA') gives YYYY-MM-DD in LOCAL time (not UTC),
       // matching the user's actual day boundaries rather than UTC's.
-      const dateStr = date.toLocaleDateString('en-CA');
+      const dateStr = date.toLocaleDateString("en-CA");
       const count = recyclingHistory.filter((entry) =>
         entry.created_at?.startsWith(dateStr)
       ).length;
@@ -131,15 +109,18 @@ export default function ProfilePage({ focusBadges = false }: { focusBadges?: boo
       .sort((a, b) => b.value - a.value);
   }, [recyclingHistory]);
 
-  const MATERIAL_COLORS = ["#10b981", "#3b82f6", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899", "#06b6d4"];
+  // iOS system chart palette: tints of the brand + system hues
+  const MATERIAL_COLORS = ["#34C759", "#30D158", "#0A84FF", "#FF9F0A", "#FF375F", "#5E5CE6", "#64D2FF"];
+  const CHART_BAR_FILL = "#34C759";
+  const CHART_TICK = theme === "dark" ? "#98989D" : "#6C6C72";
 
   if (!user) {
     return (
       <div className="min-h-screen flex items-center justify-center p-6">
         <div className="text-center">
-          <User className="w-16 h-16 text-gray-400 dark:text-gray-600 mx-auto mb-4" />
-          <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-2">Sign in to view profile</h2>
-          <p className="text-gray-600 dark:text-gray-400">Track your achievements and progress</p>
+          <Award className="w-14 h-14 text-muted-foreground/40 mx-auto mb-4" strokeWidth={1.8} />
+          <h2 className="text-[22px] font-bold text-foreground mb-1">Sign in to view profile</h2>
+          <p className="text-[15px] text-muted-foreground">Track your achievements and progress</p>
         </div>
       </div>
     );
@@ -158,7 +139,6 @@ export default function ProfilePage({ focusBadges = false }: { focusBadges?: boo
       id: criteria,
       name: badgeData?.name || criteria.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
       description: badgeData?.description || `Reach ${req.label}`,
-      icon: BADGE_ICONS[criteria] || "🏅",
       unlocked: isUnlocked,
       unlockedAt: badgeData?.unlockedAt,
       progress: isUnlocked ? undefined : Math.min(current, req.progress),
@@ -167,191 +147,178 @@ export default function ProfilePage({ focusBadges = false }: { focusBadges?: boo
   });
 
   const impact = getTotalEnvironmentalImpact(recyclingHistory);
+  const unlockedCount = allBadges.filter((b) => b.unlocked).length;
 
   return (
     <div className="min-h-screen pb-8">
-      {/* Profile Header */}
-      <div className="bg-gradient-to-br from-emerald-600 to-teal-600 text-white p-6 pt-12 pb-20 relative overflow-hidden">
-        <motion.div
-          animate={{ rotate: 360 }}
-          transition={{ duration: 50, repeat: Infinity, ease: "linear" }}
-          className="absolute -top-24 -right-24 w-64 h-64 bg-white/10 rounded-full"
-        />
-        <motion.div
-          animate={{ rotate: -360 }}
-          transition={{ duration: 40, repeat: Infinity, ease: "linear" }}
-          className="absolute -bottom-32 -left-32 w-96 h-96 bg-white/5 rounded-full"
-        />
-
-        <div className="relative z-10">
-          <motion.div
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            transition={{ type: "spring", stiffness: 200 }}
-            className="w-24 h-24 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center mx-auto mb-4 border-4 border-white/30"
-          >
-            <User className="w-12 h-12" />
-          </motion.div>
-
-          <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="text-center">
-            <h1 className="text-3xl md:text-4xl font-bold">{user.name}</h1>
-            <div className="flex items-center justify-center space-x-2 mt-2 text-emerald-100">
-              <Mail className="w-4 h-4" />
-              <p className="text-sm">{user.email}</p>
-            </div>
-            <div className="flex items-center justify-center space-x-2 mt-1 text-emerald-100">
-              <Calendar className="w-4 h-4" />
-              <p className="text-xs">Member since {format(user.created_at ? new Date(user.created_at) : new Date(), "MMM yyyy")}</p>
-            </div>
-          </motion.div>
-        </div>
-      </div>
-
-      {/* Stats Cards */}
-      <div className="px-4 -mt-12 relative z-10">
-        <div className="flex gap-3 overflow-x-auto pb-2 snap-x snap-mandatory md:grid md:grid-cols-4 md:overflow-x-visible md:snap-none">
-          <StatCard
-            icon={<TrendingUp className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />}
-            value={user.points}
-            label="Total Points"
-            delay={0.1}
-          />
-          <StatCard
-            icon={<Flame className="w-5 h-5 text-orange-600 dark:text-orange-400" />}
-            value={user.current_streak}
-            label="Current Streak"
-            delay={0.2}
-          />
-          <StatCard
-            icon={<Trophy className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />}
-            value={user.longest_streak}
-            label="Best Streak"
-            delay={0.3}
-          />
-          <StatCard
-            icon={<Leaf className="w-5 h-5 text-green-600 dark:text-green-400" />}
-            value={user.total_scans ?? 0}
-            label="Total Scans"
-            delay={0.4}
-          />
-        </div>
-      </div>
-
-      {/* Badges Section */}
-      <div ref={badgesSectionRef} className="p-4 mt-6 scroll-mt-4">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center space-x-2">
-            <Award className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
-            <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">Badges</h2>
+      <IOSHeader
+        title={user.name}
+        largeTitle={user.name}
+        subtitle={
+          <span className="flex items-center gap-1.5">
+            <Mail className="w-3.5 h-3.5" />
+            {user.email}
+          </span>
+        }
+        right={
+          <div className="w-9 h-9 rounded-full bg-brand text-white text-[15px] font-semibold flex items-center justify-center">
+            {user.name.charAt(0).toUpperCase()}
           </div>
-          <div className="bg-emerald-100 dark:bg-emerald-900/40 px-3 py-1 rounded-full">
-            <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400">
-              {allBadges.filter((b) => b.unlocked).length}/{allBadges.length}
+        }
+      />
+
+      <div className="px-4 pt-2 pb-10 space-y-6">
+        {/* Membership line */}
+        <p className="text-[13px] text-muted-foreground px-1 flex items-center gap-1.5">
+          <Calendar className="w-3.5 h-3.5" />
+          Member since{" "}
+          {format(user.created_at ? new Date(user.created_at) : new Date(), "MMMM yyyy")}
+        </p>
+
+        {/* Stats — Health-style favorites cards */}
+        <section className="grid grid-cols-2 gap-3" aria-label="Your stats">
+          <div className="bg-card rounded-[16px] p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <TrendingUp className="w-4 h-4 text-brand-strong" strokeWidth={2.4} />
+              <span className="text-[13px] font-medium text-muted-foreground">Points</span>
+            </div>
+            <p className="numerals text-[30px] leading-none font-bold">{user.points.toLocaleString()}</p>
+          </div>
+          <div className="bg-card rounded-[16px] p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <Flame className="w-4 h-4 text-streak" strokeWidth={2.4} />
+              <span className="text-[13px] font-medium text-muted-foreground">Current streak</span>
+            </div>
+            <p className="numerals text-[30px] leading-none font-bold">
+              {user.current_streak}
+              <span className="text-[15px] font-medium text-muted-foreground ml-1">days</span>
+            </p>
+          </div>
+          <div className="bg-card rounded-[16px] p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <Award className="w-4 h-4 text-info" strokeWidth={2.4} />
+              <span className="text-[13px] font-medium text-muted-foreground">Best streak</span>
+            </div>
+            <p className="numerals text-[30px] leading-none font-bold">{user.longest_streak}</p>
+          </div>
+          <div className="bg-card rounded-[16px] p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <Leaf className="w-4 h-4 text-brand-strong" strokeWidth={2.4} />
+              <span className="text-[13px] font-medium text-muted-foreground">Total scans</span>
+            </div>
+            <p className="numerals text-[30px] leading-none font-bold">{user.total_scans ?? 0}</p>
+          </div>
+        </section>
+
+        {/* Badges */}
+        <section ref={badgesSectionRef} aria-label="Badges" className="scroll-mt-20">
+          <header className="flex items-baseline justify-between px-1 pb-2">
+            <h2 className="text-[20px] font-bold tracking-[-0.02em] text-foreground">Badges</h2>
+            <span className="numerals text-[15px] text-muted-foreground font-medium">
+              {unlockedCount} of {allBadges.length}
             </span>
-          </div>
-        </div>
+          </header>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          {allBadges.map((badge, index) => (
-            <motion.div
-              key={badge.id}
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: index * 0.05 }}
-              onClick={() => handleBadgeClick(badge)}
-            >
-              <MobileCard
-                pressable={badge.unlocked}
-                className={`relative ${badge.unlocked ? "cursor-pointer" : "opacity-60"}`}
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            {allBadges.map((badge, index) => (
+              <motion.button
+                key={badge.id}
+                type="button"
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.04, type: "spring", stiffness: 380, damping: 30 }}
+                whileTap={badge.unlocked ? { scale: 0.96 } : undefined}
+                onClick={() => badge.unlocked && setSelectedBadge(badge)}
+                className={`bg-card rounded-[16px] p-4 text-center ${
+                  badge.unlocked ? "" : "opacity-55"
+                } ${badge.unlocked ? "cursor-pointer" : ""}`}
               >
-                {!badge.unlocked && (
-                  <div className="absolute top-3 right-3">
-                    <Lock className="w-4 h-4 text-gray-400 dark:text-gray-500" />
-                  </div>
-                )}
-
-                <div className="text-center">
+                <div className="relative w-full">
+                  {!badge.unlocked && (
+                    <span className="absolute top-0 right-0 text-muted-foreground/50">
+                      <Lock className="w-3.5 h-3.5" strokeWidth={2.4} />
+                    </span>
+                  )}
                   <div
-                    className={`text-4xl mb-2 ${
-                      badge.unlocked ? "filter-none" : "grayscale opacity-40"
+                    className={`w-14 h-14 mx-auto rounded-full flex items-center justify-center mb-3 ${
+                      badge.unlocked ? "bg-brand-soft" : "bg-muted/10"
                     }`}
                   >
-                    {badge.icon}
+                    <MilestoneGlyph
+                      criteria={badge.id}
+                      className={`w-7 h-7 ${badge.unlocked ? "text-brand-strong" : "text-muted-foreground"}`}
+                    />
                   </div>
-                  <h3 className="font-semibold text-sm text-gray-900 dark:text-gray-100">{badge.name}</h3>
-                  <p className="text-xs text-gray-600 dark:text-gray-400 mt-1 line-clamp-2">{badge.description}</p>
+                  <h3 className="text-[15px] font-semibold text-foreground">{badge.name}</h3>
+                  <p className="text-[12px] text-muted-foreground mt-0.5 line-clamp-2 leading-snug">
+                    {badge.description}
+                  </p>
 
                   {badge.unlocked ? (
-                    <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-2 font-medium">
-                      Unlocked
-                    </p>
+                    <p className="text-[12px] text-brand-strong mt-2 font-semibold">Earned</p>
                   ) : badge.progress !== undefined && badge.requirement ? (
-                    <div className="mt-2">
-                      <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                    <div className="mt-2.5">
+                      <div className="w-full bg-muted/20 rounded-full h-1.5 overflow-hidden">
                         <div
-                          className="bg-emerald-500 h-2 rounded-full transition-all duration-300"
+                          className="bg-brand h-full rounded-full transition-all duration-300"
                           style={{ width: `${(badge.progress / badge.requirement) * 100}%` }}
                         />
                       </div>
-                      <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                      <p className="numerals text-[11px] text-muted-foreground mt-1">
                         {badge.progress}/{badge.requirement}
                       </p>
                     </div>
                   ) : null}
                 </div>
-              </MobileCard>
-            </motion.div>
-          ))}
-        </div>
-      </div>
+              </motion.button>
+            ))}
+          </div>
+        </section>
 
-      {/* Charts Section */}
-      {recyclingHistory.length > 0 && (
-        <div className="p-4 mt-4 space-y-4 md:grid md:grid-cols-2 md:gap-4 md:space-y-0">
-          {/* Weekly Activity Chart */}
-          <MobileCard>
-            <div className="space-y-3">
-              <div className="flex items-center space-x-2">
-                <BarChart3 className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
-                <h3 className="font-semibold text-gray-900 dark:text-gray-100">Weekly Activity</h3>
+        {/* Charts */}
+        {recyclingHistory.length > 0 && (
+          <section className="space-y-4" aria-label="Charts">
+            <MobileCard>
+              <div className="flex items-center gap-2 mb-3">
+                <BarChart3 className="w-4 h-4 text-brand-strong" strokeWidth={2.4} />
+                <h3 className="text-[16px] font-semibold text-foreground">This Week</h3>
               </div>
-              <div className="h-40">
+              <div className="h-40 -ml-2">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={weeklyActivityData}>
+                  <BarChart data={weeklyActivityData} barCategoryGap="28%">
                     <XAxis
                       dataKey="day"
-                      tick={{ fontSize: 12, fill: theme === "dark" ? "#9ca3af" : "#6b7280" }}
+                      tick={{ fontSize: 12, fill: CHART_TICK }}
                       axisLine={false}
                       tickLine={false}
                     />
                     <YAxis hide />
                     <Tooltip
+                      cursor={{ fill: "rgba(120,120,128,0.08)" }}
                       contentStyle={{
-                        backgroundColor: theme === "dark" ? "#1f2937" : "#ffffff",
+                        backgroundColor: theme === "dark" ? "#1C1C1E" : "#ffffff",
                         border: "none",
-                        borderRadius: "8px",
-                        boxShadow: "0 4px 6px -1px rgba(0,0,0,0.1)",
-                        color: theme === "dark" ? "#f3f4f6" : "#111827",
+                        borderRadius: "12px",
+                        boxShadow: "0 4px 16px rgba(0,0,0,0.14)",
+                        color: theme === "dark" ? "#ffffff" : "#000000",
+                        fontSize: "13px",
                       }}
-                      labelStyle={{ color: theme === "dark" ? "#f3f4f6" : "#111827" }}
+                      labelStyle={{ color: theme === "dark" ? "#ffffff" : "#000000" }}
                       formatter={(value: number) => [`${value} items`, "Scanned"]}
                     />
-                    <Bar dataKey="count" fill="#10b981" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="count" fill={CHART_BAR_FILL} radius={[6, 6, 0, 0]} maxBarSize={22} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
-            </div>
-          </MobileCard>
+            </MobileCard>
 
-          {/* Material Breakdown Chart */}
-          {materialBreakdownData.length > 0 && (
-            <MobileCard>
-              <div className="space-y-3">
-                <div className="flex items-center space-x-2">
-                  <PieChartIcon className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
-                  <h3 className="font-semibold text-gray-900 dark:text-gray-100">Material Breakdown</h3>
+            {materialBreakdownData.length > 0 && (
+              <MobileCard>
+                <div className="flex items-center gap-2 mb-3">
+                  <PieChartIcon className="w-4 h-4 text-brand-strong" strokeWidth={2.4} />
+                  <h3 className="text-[16px] font-semibold text-foreground">Materials</h3>
                 </div>
-                <div className="flex items-center space-x-4">
+                <div className="flex items-center gap-5">
                   <div className="h-32 w-32 flex-shrink-0">
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
@@ -359,11 +326,11 @@ export default function ProfilePage({ focusBadges = false }: { focusBadges?: boo
                           data={materialBreakdownData}
                           cx="50%"
                           cy="50%"
-                          innerRadius={30}
-                          outerRadius={55}
+                          innerRadius={34}
+                          outerRadius={58}
                           dataKey="value"
                           strokeWidth={2}
-                          stroke={theme === "dark" ? "#111827" : "#ffffff"}
+                          stroke={theme === "dark" ? "#1C1C1E" : "#ffffff"}
                         >
                           {materialBreakdownData.map((_, index) => (
                             <Cell key={`cell-${index}`} fill={MATERIAL_COLORS[index % MATERIAL_COLORS.length]} />
@@ -374,168 +341,110 @@ export default function ProfilePage({ focusBadges = false }: { focusBadges?: boo
                   </div>
                   <div className="flex-1 space-y-2">
                     {materialBreakdownData.slice(0, 5).map((item, index) => (
-                      <div key={item.name} className="flex items-center justify-between text-sm">
-                        <div className="flex items-center space-x-2">
-                          <div
-                            className="w-3 h-3 rounded-full flex-shrink-0"
+                      <div key={item.name} className="flex items-center justify-between text-[14px]">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span
+                            className="w-2.5 h-2.5 rounded-full flex-shrink-0"
                             style={{ backgroundColor: MATERIAL_COLORS[index % MATERIAL_COLORS.length] }}
                           />
-                          <span className="text-gray-700 dark:text-gray-300">{item.name}</span>
+                          <span className="text-foreground/80 truncate">{item.name}</span>
                         </div>
-                        <span className="font-medium text-gray-900 dark:text-gray-100">{item.value}</span>
+                        <span className="numerals font-medium text-foreground">{item.value}</span>
                       </div>
                     ))}
                   </div>
                 </div>
-              </div>
-            </MobileCard>
-          )}
-        </div>
-      )}
+              </MobileCard>
+            )}
+          </section>
+        )}
 
-      {/* Achievements Summary + Settings: side-by-side on md+ */}
-      <div className="md:grid md:grid-cols-2 md:gap-4 md:items-start">
-        {/* Achievements Summary */}
-        <div className="p-4">
-          <MobileCard>
-            <div className="space-y-3">
-              <div className="flex items-center space-x-2">
-                <Target className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
-                <h3 className="font-semibold text-gray-900 dark:text-gray-100">Achievements</h3>
-              </div>
-
-              <div className="space-y-2 text-sm">
-                <div className="flex items-center justify-between py-2 border-b border-gray-100 dark:border-gray-800">
-                  <span className="text-gray-600 dark:text-gray-400">Environmental Impact</span>
-                  <span className="font-semibold text-gray-900 dark:text-gray-100">
-                    {impact.totalCo2.toFixed(1)} kg CO2 saved
-                  </span>
-                </div>
-                <div className="flex items-center justify-between py-2 border-b border-gray-100 dark:border-gray-800">
-                  <span className="text-gray-600 dark:text-gray-400">Energy Saved</span>
-                  <span className="font-semibold text-gray-900 dark:text-gray-100">
-                    {impact.totalEnergy.toFixed(1)} kWh
-                  </span>
-                </div>
-                <div className="flex items-center justify-between py-2 border-b border-gray-100 dark:border-gray-800">
-                  <span className="text-gray-600 dark:text-gray-400">Active Days</span>
-                  <span className="font-semibold text-gray-900 dark:text-gray-100">
-                    {(() => {
-                      const uniqueDays = new Set(
-                        recyclingHistory.map(e => e.created_at?.split('T')[0]).filter(Boolean)
-                      );
-                      return uniqueDays.size;
-                    })()}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between py-2">
-                  <span className="text-gray-600 dark:text-gray-400">Badges Completion</span>
-                  <span className="font-semibold text-gray-900 dark:text-gray-100">
-                    {allBadges.length > 0 ? ((allBadges.filter((b) => b.unlocked).length / allBadges.length) * 100).toFixed(0) : 0}%
-                  </span>
-                </div>
-              </div>
-            </div>
-          </MobileCard>
-        </div>
+        {/* Impact summary */}
+        <section aria-label="Impact">
+          <ListGroup>
+            <ListRow
+              title="CO₂ saved"
+              value={<span className="numerals font-semibold">{impact.totalCo2.toFixed(1)} kg</span>}
+            />
+            <ListRow
+              title="Energy saved"
+              value={<span className="numerals font-semibold">{impact.totalEnergy.toFixed(1)} kWh</span>}
+            />
+            <ListRow
+              title="Badges earned"
+              value={
+                <span className="numerals font-semibold">
+                  {unlockedCount}/{allBadges.length}
+                </span>
+              }
+            />
+          </ListGroup>
+        </section>
 
         {/* Settings */}
-        <div className="p-4">
-          <MobileCard>
-            <div className="space-y-3">
-              <div className="flex items-center space-x-2">
-                <Settings className="w-5 h-5 text-gray-600 dark:text-gray-400" />
-                <h3 className="font-semibold text-gray-900 dark:text-gray-100">Settings</h3>
-              </div>
-              <Button
-                variant="outline"
-                onClick={toggleTheme}
-                className="w-full justify-start h-12"
-              >
-                {theme === "dark" ? (
-                  <Sun className="w-5 h-5 mr-3 text-yellow-500" />
-                ) : (
-                  <Moon className="w-5 h-5 mr-3 text-gray-600" />
-                )}
-                {theme === "dark" ? "Light Mode" : "Dark Mode"}
-              </Button>
-            </div>
-          </MobileCard>
-        </div>
+        <section aria-label="Settings">
+          <ListGroup>
+            <ListRow
+              icon={theme === "dark" ? <Sun className="w-4 h-4" strokeWidth={2.4} /> : <Moon className="w-4 h-4" strokeWidth={2.4} />}
+              iconTint="plain"
+              title={theme === "dark" ? "Switch to Light Mode" : "Switch to Dark Mode"}
+              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+            />
+            <ListRow
+              icon={<LogOut className="w-4 h-4" strokeWidth={2.4} />}
+              iconTint="destructive"
+              title="Sign Out"
+              destructive
+              onClick={handleLogout}
+            />
+          </ListGroup>
+        </section>
       </div>
 
-      {/* Logout Button */}
-      <div className="p-4 md:max-w-sm">
-        <Button
-          variant="outline"
-          onClick={handleLogout}
-          className="w-full h-12 font-semibold border-2 border-gray-200 dark:border-gray-700 hover:bg-red-50 dark:hover:bg-red-950/30 hover:border-red-200 dark:hover:border-red-800 hover:text-red-600 dark:hover:text-red-400"
-        >
-          <LogOut className="w-5 h-5 mr-2" />
-          Sign Out
-        </Button>
-      </div>
-
-      {/* Badge Detail Bottom Sheet */}
+      {/* Badge Detail Sheet */}
       <BottomSheet
         open={!!selectedBadge}
         onOpenChange={(open) => !open && setSelectedBadge(null)}
         title={selectedBadge?.name}
-        description="Badge Details"
+        description="Badge"
       >
         {selectedBadge && (
           <div className="space-y-6">
             <div className="flex flex-col items-center text-center">
-              <div className="text-6xl mb-4">{selectedBadge.icon}</div>
-              <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100">{selectedBadge.name}</h3>
-              <p className="text-gray-600 dark:text-gray-400 mt-2">{selectedBadge.description}</p>
+              <div className="w-20 h-20 mb-4 rounded-full bg-brand-soft flex items-center justify-center">
+                <MilestoneGlyph criteria={selectedBadge.id} className="w-10 h-10 text-brand-strong" />
+              </div>
+              <h3 className="text-[24px] font-bold tracking-[-0.02em] text-foreground">{selectedBadge.name}</h3>
+              <p className="text-[15px] text-muted-foreground mt-1">{selectedBadge.description}</p>
             </div>
 
             {selectedBadge.unlocked && (
-              <MobileCard className="bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800">
-                <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 bg-emerald-500 rounded-full flex items-center justify-center">
-                    <CheckCircle className="w-6 h-6 text-white" />
-                  </div>
-                  <div>
-                    <p className="font-semibold text-emerald-900 dark:text-emerald-100">Badge Unlocked!</p>
-                    <p className="text-sm text-emerald-700 dark:text-emerald-300">
-                      {selectedBadge.unlockedAt ? format(new Date(selectedBadge.unlockedAt), "MMMM dd, yyyy") : "Earned through your recycling efforts"}
-                    </p>
-                  </div>
+              <div className="bg-brand-tint rounded-[16px] p-4 flex items-center gap-3">
+                <div className="w-9 h-9 bg-brand rounded-full flex items-center justify-center flex-shrink-0">
+                  <CheckCircle2 className="w-5 h-5 text-white" strokeWidth={2.4} />
                 </div>
-              </MobileCard>
-            )}
-
-            <div className="space-y-3">
-              <h4 className="font-semibold text-gray-900 dark:text-gray-100">Achievement Stats</h4>
-              <div className="grid grid-cols-2 gap-3">
-                <MobileCard className="text-center">
-                  <Award className="w-8 h-8 text-emerald-600 dark:text-emerald-400 mx-auto mb-2" />
-                  <p className="text-xs text-gray-600 dark:text-gray-400">Badge Type</p>
-                  <p className="font-semibold text-gray-900 dark:text-gray-100 text-sm">
-                    {selectedBadge.requirement ? "Progress" : "Milestone"}
+                <div>
+                  <p className="text-[15px] font-semibold text-brand-strong">Badge unlocked</p>
+                  <p className="text-[13px] text-muted-foreground">
+                    {selectedBadge.unlockedAt
+                      ? format(new Date(selectedBadge.unlockedAt), "MMMM d, yyyy")
+                      : "Earned through your recycling efforts"}
                   </p>
-                </MobileCard>
-                <MobileCard className="text-center">
-                  <Zap className="w-8 h-8 text-yellow-600 dark:text-yellow-400 mx-auto mb-2" />
-                  <p className="text-xs text-gray-600 dark:text-gray-400">Reward</p>
-                  <p className="font-semibold text-gray-900 dark:text-gray-100 text-sm">+50 XP</p>
-                </MobileCard>
+                </div>
               </div>
-            </div>
+            )}
 
             {selectedBadge.progress !== undefined && selectedBadge.requirement && (
               <div className="space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600 dark:text-gray-400">Progress</span>
-                  <span className="font-semibold text-gray-900 dark:text-gray-100">
+                <div className="flex justify-between text-[14px]">
+                  <span className="text-muted-foreground">Progress</span>
+                  <span className="numerals font-semibold text-foreground">
                     {selectedBadge.progress}/{selectedBadge.requirement}
                   </span>
                 </div>
-                <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3">
+                <div className="w-full bg-muted/20 rounded-full h-2.5 overflow-hidden">
                   <div
-                    className="bg-gradient-to-r from-emerald-500 to-teal-500 h-3 rounded-full transition-all duration-500"
+                    className="bg-brand h-full rounded-full transition-all duration-500"
                     style={{
                       width: `${Math.min(
                         (selectedBadge.progress / selectedBadge.requirement) * 100,
@@ -547,10 +456,7 @@ export default function ProfilePage({ focusBadges = false }: { focusBadges?: boo
               </div>
             )}
 
-            <Button
-              onClick={() => setSelectedBadge(null)}
-              className="w-full h-12 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700"
-            >
+            <Button onClick={() => setSelectedBadge(null)} className="w-full h-[50px] rounded-[14px] text-[17px] btn-brand">
               Close
             </Button>
           </div>

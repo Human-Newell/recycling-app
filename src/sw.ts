@@ -1,5 +1,7 @@
 /// <reference lib="webworker" />
 
+import { getPushDistinctId } from './services/pushIdentity'
+
 // Custom EcoScan service worker (vite-plugin-pwa, injectManifest strategy).
 // At build time the precache manifest is injected in place of
 // `self.__WB_MANIFEST`. All URL resolution is relative to the SW scope so the
@@ -107,6 +109,43 @@ interface PushPayload {
   icon?: string
   tag?: string
   url?: string
+  kind?: string
+}
+
+// --- Analytics from the service worker --------------------------------------
+//
+// The SW cannot use posthog-js or localStorage, so push events are POSTed
+// straight to the PostHog ingestion API. VITE_* values are inlined at build
+// time (vite-plugin-pwa compiles this file through the main Vite config).
+// Everything below hard-no-ops — zero network calls, zero IndexedDB access —
+// unless VITE_POSTHOG_KEY was set at build time.
+
+const POSTHOG_KEY = import.meta.env.VITE_POSTHOG_KEY as string | undefined
+const POSTHOG_HOST =
+  (import.meta.env.VITE_POSTHOG_HOST as string | undefined) || 'https://us.i.posthog.com'
+
+async function captureInSW(event: string, props: Record<string, unknown>): Promise<void> {
+  if (!POSTHOG_KEY) return
+  try {
+    // The distinct id is persisted by pushSubscription.ts at subscribe time.
+    // Skip capture entirely when it is missing rather than sending anonymous.
+    const distinctId = await getPushDistinctId()
+    if (!distinctId) return
+
+    await fetch(`${POSTHOG_HOST}/i/v0/e/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        api_key: POSTHOG_KEY,
+        event,
+        distinct_id: distinctId,
+        properties: { ...props, $lib: 'ecoscan-sw' },
+      }),
+      keepalive: true,
+    })
+  } catch {
+    // Fire-and-forget: analytics must never break the notification.
+  }
 }
 
 self.addEventListener('push', (event) => {
@@ -119,17 +158,24 @@ self.addEventListener('push', (event) => {
 
   // Resolve icons against the registration scope (subpath-safe).
   const icon = new URL(payload.icon || 'icon-192.png', self.registration.scope).href
+  const kind = payload.kind || 'generic'
 
   event.waitUntil(
-    self.registration.showNotification(payload.title || 'EcoScan', {
-      body: payload.body || 'You have a new update from EcoScan',
-      icon,
-      badge: icon,
-      tag: payload.tag || 'ecoscan-notification',
-      data: {
-        url: payload.url || './',
-      },
-    })
+    self.registration
+      .showNotification(payload.title || 'EcoScan', {
+        body: payload.body || 'You have a new update from EcoScan',
+        icon,
+        badge: icon,
+        tag: payload.tag || 'ecoscan-notification',
+        data: {
+          url: payload.url || './',
+          kind,
+        },
+      })
+      // Capture only once the notification actually displayed; the keepalive'd
+      // fetch runs inside waitUntil so the SW stays alive for the send without
+      // delaying the notification itself.
+      .then(() => captureInSW('push_received', { kind }))
   )
 })
 
@@ -139,6 +185,7 @@ self.addEventListener('notificationclick', (event) => {
   // Resolve the target URL against the scope, never against the origin root
   // (important when deployed under a subpath like /recycling-app/).
   const target = new URL(event.notification.data?.url || './', self.registration.scope).href
+  const kind = event.notification.data?.kind
 
   event.waitUntil(
     self.clients
@@ -147,6 +194,18 @@ self.addEventListener('notificationclick', (event) => {
         for (const client of clientList) {
           // Only focus/redirect clients that live inside our scope.
           if (client.url.startsWith(self.registration.scope) && 'focus' in client) {
+            // Relay the click to the app before focusing: pushEvents.ts turns
+            // this message into the `ecoscan:push-clicked` window event.
+            try {
+              client.postMessage({
+                type: 'push_clicked',
+                kind,
+                url: target,
+                clickedAt: Date.now(),
+              })
+            } catch {
+              // The client may have shut down between matchAll and now.
+            }
             try {
               if (new URL(client.url).href !== target) {
                 await client.navigate(target)

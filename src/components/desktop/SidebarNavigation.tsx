@@ -1,20 +1,21 @@
 import { useLocation, useNavigate } from "react-router-dom";
-import { Home, History, Award, User, Leaf, Camera } from "lucide-react";
+import { Home, Activity, Award, CircleUser, Camera, Leaf } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { cn } from "@/lib/utils";
 
 // Kept in sync with package.json until a release script manages it.
 const APP_VERSION = "v0.0.0";
 
 const navItems = [
   { path: "/", label: "Home", icon: Home },
-  { path: "/history", label: "History", icon: History },
-  { path: "/badges", label: "Badges", icon: Award, requiresAuth: true },
-  { path: "/profile", label: "Profile", icon: User },
+  { path: "/history", label: "Activity", icon: Activity, requiresAuth: true },
+  { path: "/badges", label: "Awards", icon: Award, requiresAuth: true },
+  { path: "/profile", label: "You", icon: CircleUser },
 ];
 
 /**
  * Persistent left sidebar for md+ screens. Hidden below md, where the
- * bottom tab bar (MobileNavigation) and the FAB take over.
+ * iOS tab bar (MobileNavigation) takes over.
  */
 export function SidebarNavigation() {
   const location = useLocation();
@@ -22,32 +23,35 @@ export function SidebarNavigation() {
   const { user } = useAuth();
 
   return (
-    <nav className="hidden md:flex md:fixed md:inset-y-0 md:left-0 md:z-50 md:w-64 md:flex-col bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800">
+    <nav className="hidden md:flex md:fixed md:inset-y-0 md:left-0 md:z-50 md:w-64 md:flex-col bg-card border-r-[0.5px] border-border">
       {/* Logo / app name */}
-      <div className="p-6 border-b border-gray-100 dark:border-gray-800">
-        <div className="flex items-center space-x-2">
-          <Leaf className="w-8 h-8 text-emerald-600 dark:text-emerald-400" />
-          <span className="text-xl font-bold text-gray-900 dark:text-gray-100">EcoScan</span>
+      <div className="p-5">
+        <div className="flex items-center gap-2.5">
+          <div className="w-9 h-9 rounded-[10px] bg-brand flex items-center justify-center shadow-sm">
+            <Leaf className="w-5 h-5 text-white" strokeWidth={2.2} />
+          </div>
+          <span className="text-[19px] font-bold tracking-[-0.02em] text-foreground">EcoScan</span>
         </div>
       </div>
 
-      {/* Primary scan action — desktop replacement for the mobile FAB */}
-      <div className="px-4 pt-4">
+      {/* Primary scan action — desktop replacement for the mobile scan tab */}
+      <div className="px-4 pt-1">
         <button
           onClick={() => navigate("/scan")}
-          className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl font-semibold text-white transition-all ${
+          className={cn(
+            "w-full flex items-center gap-2.5 px-4 h-11 rounded-xl font-semibold transition-all active:opacity-70",
             location.pathname === "/scan"
-              ? "bg-emerald-700 dark:bg-emerald-600"
-              : "bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 active:from-emerald-700 active:to-teal-800 shadow-lg shadow-emerald-600/20"
-          }`}
+              ? "bg-brand/15 text-brand-strong"
+              : "btn-brand text-white"
+          )}
         >
-          <Camera className="w-5 h-5" />
+          <Camera className="w-[18px] h-[18px]" />
           <span>Scan Item</span>
         </button>
       </div>
 
-      {/* Nav items — same routes as the mobile bottom tab bar */}
-      <div className="flex-1 p-4 space-y-1">
+      {/* Nav items — same routes as the mobile tab bar */}
+      <div className="flex-1 p-4 space-y-0.5">
         {navItems.map((item) => {
           const Icon = item.icon;
           const isActive = location.pathname === item.path;
@@ -58,24 +62,25 @@ export function SidebarNavigation() {
               key={item.path}
               onClick={() => !isDisabled && navigate(item.path)}
               disabled={isDisabled}
-              className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all ${
+              className={cn(
+                "w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-colors active:opacity-60",
                 isActive
-                  ? "bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 font-semibold"
+                  ? "bg-brand-tint text-brand-strong font-semibold"
                   : isDisabled
-                  ? "text-gray-300 dark:text-gray-700 cursor-not-allowed"
-                  : "text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800"
-              }`}
+                  ? "text-muted-foreground/35 cursor-not-allowed"
+                  : "text-muted-foreground hover:bg-muted/10 hover:text-foreground"
+              )}
             >
-              <Icon className="w-5 h-5" />
-              <span>{item.label}</span>
+              <Icon className="w-5 h-5" strokeWidth={isActive ? 2.4 : 2} />
+              <span className="text-[15px]">{item.label}</span>
             </button>
           );
         })}
       </div>
 
       {/* Footer */}
-      <div className="p-4 border-t border-gray-100 dark:border-gray-800">
-        <p className="text-xs text-gray-400 dark:text-gray-600 text-center">
+      <div className="p-4 border-t-[0.5px] border-border">
+        <p className="text-xs text-muted-foreground/60 text-center">
           EcoScan {APP_VERSION}
         </p>
       </div>

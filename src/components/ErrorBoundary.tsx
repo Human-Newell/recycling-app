@@ -38,23 +38,23 @@ export class ErrorBoundary extends React.Component<
   render() {
     if (this.state.hasError) {
       return (
-        <div className="min-h-screen flex items-center justify-center p-6 bg-gray-50 dark:bg-gray-950">
+        <div className="min-h-screen flex items-center justify-center p-6 bg-background">
           <div className="max-w-md w-full text-center space-y-4">
             <div className="text-5xl">🌱</div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+            <h1 className="text-2xl font-bold text-foreground">
               Something went wrong
             </h1>
-            <p className="text-gray-600 dark:text-gray-400">
+            <p className="text-muted-foreground">
               The app hit an unexpected error. Try reloading.
             </p>
             <button
               onClick={this.handleReload}
-              className="px-6 py-3 rounded-lg bg-emerald-600 text-white font-semibold hover:bg-emerald-700 transition-colors"
+              className="px-6 py-3 rounded-lg btn-brand font-semibold transition-colors"
             >
               Reload app
             </button>
             {isDev && (
-              <pre className="mt-4 p-3 text-left text-xs bg-gray-100 dark:bg-gray-800 text-red-600 dark:text-red-400 rounded overflow-auto max-h-48">
+              <pre className="mt-4 p-3 text-left text-xs bg-muted text-destructive rounded overflow-auto max-h-48">
                 {serializeError(this.state.error)}
               </pre>
             )}

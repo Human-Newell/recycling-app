@@ -1,6 +1,7 @@
 import { ReactNode, useRef, useState } from "react";
 import { motion, PanInfo, useAnimation } from "framer-motion";
 import { useNavigate } from "react-router-dom";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 interface SwipeablePagesProps {
   children: ReactNode;
@@ -92,8 +93,8 @@ export function SwipeablePages({ children, currentPath, swipeConfig }: Swipeable
           animate={{ opacity: Math.min(dragX / threshold, 0.6) }}
           className="fixed left-4 top-1/2 -translate-y-1/2 pointer-events-none z-50"
         >
-          <div className="bg-emerald-500/20 backdrop-blur-sm rounded-full p-4">
-            <div className="text-2xl">→</div>
+          <div className="chrome-blur shadow-float rounded-full p-3 text-brand-strong">
+            <ChevronRight className="w-6 h-6" strokeWidth={2.4} />
           </div>
         </motion.div>
       )}
@@ -105,8 +106,8 @@ export function SwipeablePages({ children, currentPath, swipeConfig }: Swipeable
           animate={{ opacity: Math.min(Math.abs(dragX) / threshold, 0.6) }}
           className="fixed right-4 top-1/2 -translate-y-1/2 pointer-events-none z-50"
         >
-          <div className="bg-emerald-500/20 backdrop-blur-sm rounded-full p-4">
-            <div className="text-2xl">←</div>
+          <div className="chrome-blur shadow-float rounded-full p-3 text-brand-strong">
+            <ChevronLeft className="w-6 h-6" strokeWidth={2.4} />
           </div>
         </motion.div>
       )}
