@@ -2,7 +2,7 @@
 
 Track your recycling, earn points, unlock badges, and see your environmental impact.
 
-**Live demo:** https://human-newell.github.io/recycling-app/
+**Live demo:** https://humannewell.github.io/recycling-app/
 
 ## Tech Stack
 
