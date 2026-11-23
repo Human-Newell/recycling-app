@@ -1,15 +1,15 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useNavigate } from "react-router-dom";
+import { Camera, CheckCircle2, XCircle, Loader2, Sparkles, Info, Award, Zap, ImageIcon } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
-import { Camera, CheckCircle2, XCircle, Loader2, Sparkles, ArrowLeft, Info, Award, Zap, ImageIcon, MapPin } from "lucide-react";
-import { MobileCard } from "@/components/mobile/MobileCard";
-import { BottomSheet } from "@/components/mobile/BottomSheet";
 import { toast } from "sonner";
 import { apiService } from "@/services/apiService";
+import { ANALYTICS_EVENTS, captureEvent, type ScanSource } from "@/services/analytics";
 import { getEnvironmentalImpact } from "@/lib/impact";
 import { enqueue, queuedCount, QUEUE_SYNCED_EVENT, type QueuedEntry } from "@/services/offlineQueue";
+import { IOSHeader } from "@/components/IOSHeader";
+import { BottomSheet } from "@/components/mobile/BottomSheet";
 
 interface ScanResult {
   item: string;
@@ -33,7 +33,6 @@ export default function ScanPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
   const { user, addRecyclingEntry, getPointsForMaterial } = useAuth();
-  const navigate = useNavigate();
 
   // Offline queue indicator: how many scans are waiting to sync.
   const [pendingSyncCount, setPendingSyncCount] = useState(0);
@@ -56,7 +55,18 @@ export default function ScanPage() {
     };
   }, [refreshPendingCount]);
 
-  const handleFileSelect = async (file: File) => {
+  const readAsDataURL = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => resolve(e.target?.result as string);
+      reader.onerror = () => reject(reader.error);
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleFileSelect = async (file: File, source: ScanSource) => {
+    captureEvent(ANALYTICS_EVENTS.ScanStarted, { mode: "my_item", source });
+
     if (!user) {
       toast.error("Please sign in to scan items");
       return;
@@ -67,21 +77,24 @@ export default function ScanPage() {
     const previewDataUrl = await readAsDataURL(file);
     setCapturedImage(previewDataUrl);
 
-    // Start scanning
     setScanning(true);
     setScanResult(null);
     setShowResultSheet(false);
 
     try {
-      // Compress image before sending
       const compressedData = await compressImage(file);
-
-      // Call the API service with actual image data
+      const identifyStartedAt = performance.now();
       const result = await apiService.identifyItem(compressedData);
+      captureEvent(ANALYTICS_EVENTS.AiResult, {
+        provider: result.provider,
+        material: result.material,
+        confidence: result.confidence,
+        latency_ms: Math.round(performance.now() - identifyStartedAt),
+      });
 
       const points = getPointsForMaterial(result.material);
 
-      const newScanResult: ScanResult = {
+      setScanResult({
         item: result.item,
         material: result.material,
         recyclable: result.recyclable,
@@ -89,32 +102,13 @@ export default function ScanPage() {
         instructions: result.instructions,
         imageData: previewDataUrl,
         confidence: result.confidence,
-      };
-
-      setScanResult(newScanResult);
+      });
       setShowResultSheet(true);
     } catch (error) {
       toast.error("Failed to identify item. Please try again.");
       console.error("Scan error:", error);
     }
     setScanning(false);
-  };
-
-  const readAsDataURL = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = (e) => resolve(e.target?.result as string);
-      reader.onerror = () => reject(reader.error);
-      reader.readAsDataURL(file);
-    });
-  };
-
-  const handleCameraCapture = () => {
-    fileInputRef.current?.click();
-  };
-
-  const handleGallerySelect = () => {
-    galleryInputRef.current?.click();
   };
 
   const compressImage = (file: File): Promise<string> => {
@@ -245,6 +239,12 @@ export default function ScanPage() {
           description: "Keep up the great work!",
         });
         if (navigator.vibrate) navigator.vibrate([50, 30, 50]);
+        captureEvent(ANALYTICS_EVENTS.ScanConfirmed, {
+          mode: "my_item",
+          material: scanResult.material,
+          had_local_verdict: false,
+          region_id: null,
+        });
       }
     }
 
@@ -258,7 +258,7 @@ export default function ScanPage() {
   };
 
   return (
-    <div className="min-h-screen md:max-w-lg md:mx-auto">
+    <div className="min-h-screen bg-black md:max-w-lg md:mx-auto md:rounded-[24px] md:my-6 md:overflow-hidden md:shadow-float">
       {/* Hidden file inputs */}
       <input
         ref={fileInputRef}
@@ -268,7 +268,7 @@ export default function ScanPage() {
         className="hidden"
         onChange={(e) => {
           const file = e.target.files?.[0];
-          if (file) handleFileSelect(file);
+          if (file) handleFileSelect(file, "camera");
           e.target.value = "";
         }}
       />
@@ -279,134 +279,118 @@ export default function ScanPage() {
         className="hidden"
         onChange={(e) => {
           const file = e.target.files?.[0];
-          if (file) handleFileSelect(file);
+          if (file) handleFileSelect(file, "gallery");
           e.target.value = "";
         }}
       />
 
-      {/* Header */}
-      <div className="bg-gradient-to-br from-emerald-600 to-teal-600 text-white p-6 pt-12">
-        <motion.div initial={{ x: -20 }} animate={{ x: 0 }} className="flex items-center space-x-4">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => navigate(-1)}
-            className="text-white hover:bg-white/20"
-          >
-            <ArrowLeft className="w-6 h-6" />
-          </Button>
-          <div>
-            <h1 className="text-2xl font-bold">Scan Item</h1>
-            <p className="text-emerald-100">Point your camera at recyclable items</p>
-          </div>
-        </motion.div>
-      </div>
+      <IOSHeader title="Scan" back variant="dark" />
 
-      <div className="p-4 space-y-6">
-        {/* Camera View / Image Preview */}
-        <MobileCard>
-          <div className="relative aspect-[4/3] bg-gradient-to-br from-gray-900 to-gray-800 rounded-xl overflow-hidden">
-            {capturedImage ? (
-              <img src={capturedImage} alt="Captured item" className="absolute inset-0 w-full h-full object-cover" />
-            ) : (
-              <div className="absolute inset-0 flex items-center justify-center">
-                <AnimatePresence mode="wait">
-                  {scanning ? (
-                    <motion.div
-                      key="scanning"
-                      initial={{ scale: 0 }}
-                      animate={{ scale: 1 }}
-                      exit={{ scale: 0 }}
-                      className="text-center"
-                    >
-                      <Loader2 className="w-16 h-16 text-emerald-400 animate-spin mx-auto mb-4" />
-                      <p className="text-white font-medium">Analyzing item...</p>
-                    </motion.div>
-                  ) : (
-                    <motion.div
-                      key="ready"
-                      initial={{ scale: 0 }}
-                      animate={{ scale: 1 }}
-                      className="text-center"
-                    >
-                      <Camera className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                      <p className="text-gray-300">Ready to scan</p>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-            )}
+      <div className="px-4 pt-4 pb-10 space-y-6 md:pb-6">
+        {/* Viewfinder */}
+        <div className="relative aspect-[3/4] bg-[#111113] rounded-[24px] overflow-hidden border-[0.5px] border-white/10">
+          {capturedImage ? (
+            <img src={capturedImage} alt="Captured item" className="absolute inset-0 w-full h-full object-cover" />
+          ) : (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <AnimatePresence mode="wait">
+                {scanning ? (
+                  <motion.div
+                    key="scanning"
+                    initial={{ scale: 0.9, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    exit={{ scale: 0.9, opacity: 0 }}
+                    className="text-center"
+                  >
+                    <Loader2 className="w-12 h-12 text-white/80 animate-spin mx-auto mb-4" strokeWidth={2} />
+                    <p className="text-white text-[17px] font-semibold">Analyzing…</p>
+                    <p className="text-white/50 text-[13px] mt-1">Identifying the material</p>
+                  </motion.div>
+                ) : (
+                  <motion.div
+                    key="ready"
+                    initial={{ scale: 0.9, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    exit={{ scale: 0.9, opacity: 0 }}
+                    className="text-center px-8"
+                  >
+                    <Camera className="w-12 h-12 text-white/30 mx-auto mb-4" strokeWidth={1.6} />
+                    <p className="text-white/70 text-[17px] font-medium">Ready to scan</p>
+                    <p className="text-white/40 text-[13px] mt-1">
+                      Point your camera at any item
+                    </p>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          )}
 
-            {/* Scanning Overlay */}
-            {scanning && (
-              <motion.div
-                animate={{ y: ["0%", "100%"] }}
-                transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
-                className="absolute inset-0 bg-gradient-to-b from-transparent via-emerald-500/30 to-transparent h-1/4 z-10"
-              />
-            )}
+          {/* Scanning sweep */}
+          {scanning && (
+            <motion.div
+              animate={{ y: ["-100%", "400%"] }}
+              transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
+              className="absolute inset-x-0 top-0 h-1/4 z-10 bg-gradient-to-b from-transparent via-brand/30 to-transparent"
+            />
+          )}
 
-            {/* Corners */}
-            <div className="absolute top-4 left-4 w-8 h-8 border-t-2 border-l-2 border-emerald-400 z-10" />
-            <div className="absolute top-4 right-4 w-8 h-8 border-t-2 border-r-2 border-emerald-400 z-10" />
-            <div className="absolute bottom-4 left-4 w-8 h-8 border-b-2 border-l-2 border-emerald-400 z-10" />
-            <div className="absolute bottom-4 right-4 w-8 h-8 border-b-2 border-r-2 border-emerald-400 z-10" />
-          </div>
-        </MobileCard>
+          {/* Viewfinder corners */}
+          <div className="absolute top-5 left-5 w-9 h-9 border-t-[3px] border-l-[3px] border-white/80 rounded-tl-xl z-10" />
+          <div className="absolute top-5 right-5 w-9 h-9 border-t-[3px] border-r-[3px] border-white/80 rounded-tr-xl z-10" />
+          <div className="absolute bottom-5 left-5 w-9 h-9 border-b-[3px] border-l-[3px] border-white/80 rounded-bl-xl z-10" />
+          <div className="absolute bottom-5 right-5 w-9 h-9 border-b-[3px] border-r-[3px] border-white/80 rounded-br-xl z-10" />
+        </div>
 
-        {/* Scan Buttons */}
+        {/* Capture buttons — the shutter is the primary action */}
         {!scanResult && !scanning && (
-          <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="space-y-3">
+          <motion.div initial={{ y: 16, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="space-y-3">
             <Button
               size="lg"
-              onClick={handleCameraCapture}
+              onClick={() => fileInputRef.current?.click()}
               disabled={!user}
-              className="w-full h-16 text-lg font-semibold bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700"
+              className="w-full btn-brand"
             >
-              <Camera className="w-6 h-6 mr-2" />
+              <Camera className="w-5 h-5" />
               Take Photo
             </Button>
             <Button
               size="lg"
-              variant="outline"
-              onClick={handleGallerySelect}
+              onClick={() => galleryInputRef.current?.click()}
               disabled={!user}
-              className="w-full h-14 text-base font-semibold"
+              className="w-full h-[50px] rounded-[14px] text-[17px] bg-white/10 text-white hover:bg-white/15 border-[0.5px] border-white/15"
             >
-              <ImageIcon className="w-5 h-5 mr-2" />
-              Choose from Gallery
+              <ImageIcon className="w-5 h-5" />
+              Choose from Library
             </Button>
           </motion.div>
         )}
 
         {/* Offline queue indicator */}
         {pendingSyncCount > 0 && (
-          <p className="text-sm text-gray-500 dark:text-gray-400 text-center">
+          <p className="text-[13px] text-white/50 text-center">
             {pendingSyncCount} scan{pendingSyncCount === 1 ? "" : "s"} waiting to sync
           </p>
         )}
 
         {/* Tips */}
         {!scanning && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }}>
-            <MobileCard>
-              <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-3">Scanning Tips</h3>
-              <ul className="space-y-2 text-sm text-gray-600 dark:text-gray-400">
-                <li className="flex items-start">
-                  <span className="text-emerald-600 dark:text-emerald-400 mr-2">•</span>
-                  <span>Ensure good lighting for best results</span>
-                </li>
-                <li className="flex items-start">
-                  <span className="text-emerald-600 dark:text-emerald-400 mr-2">•</span>
-                  <span>Hold camera steady and center the item</span>
-                </li>
-                <li className="flex items-start">
-                  <span className="text-emerald-600 dark:text-emerald-400 mr-2">•</span>
-                  <span>Look for recycling symbols on packaging</span>
-                </li>
-              </ul>
-            </MobileCard>
-          </motion.div>
+          <div className="rounded-[16px] bg-white/[0.06] border-[0.5px] border-white/10 p-4">
+            <h3 className="text-[15px] font-semibold text-white/90 mb-2.5">Tips for a good scan</h3>
+            <ul className="space-y-2 text-[14px] text-white/60">
+              <li className="flex items-start gap-2">
+                <span className="text-brand-strong w-1.5 h-1.5 rounded-full bg-brand mt-[7px] flex-shrink-0" />
+                Good lighting gives the best results
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-brand mt-[7px] flex-shrink-0" />
+                Center the item and hold steady
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-brand mt-[7px] flex-shrink-0" />
+                Recycling symbols on packaging help
+              </li>
+            </ul>
+          </div>
         )}
       </div>
 
@@ -423,116 +407,119 @@ export default function ScanPage() {
       >
         {scanResult && (
           <div className="space-y-6">
-            {/* Result Icon */}
+            {/* Result */}
             <div className="flex flex-col items-center text-center">
-              {scanResult.recyclable ? (
-                <motion.div
-                  initial={{ scale: 0, rotate: -10 }}
-                  animate={{ scale: 1, rotate: 0 }}
-                  transition={{ type: "spring", stiffness: 200 }}
-                >
-                  <div className="w-24 h-24 bg-emerald-100 dark:bg-emerald-900/40 rounded-full flex items-center justify-center mb-4">
-                    <CheckCircle2 className="w-16 h-16 text-emerald-600 dark:text-emerald-400" />
-                  </div>
-                </motion.div>
-              ) : (
-                <motion.div
-                  initial={{ scale: 0, rotate: -10 }}
-                  animate={{ scale: 1, rotate: 0 }}
-                  transition={{ type: "spring", stiffness: 200 }}
-                >
-                  <div className="w-24 h-24 bg-red-100 dark:bg-red-900/40 rounded-full flex items-center justify-center mb-4">
-                    <XCircle className="w-16 h-16 text-red-600 dark:text-red-400" />
-                  </div>
-                </motion.div>
-              )}
+              <motion.div
+                initial={{ scale: 0.6, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ type: "spring", stiffness: 320, damping: 20 }}
+                className={`w-20 h-20 rounded-full flex items-center justify-center mb-4 ${
+                  scanResult.recyclable ? "bg-brand-soft" : "bg-destructive/10"
+                }`}
+              >
+                {scanResult.recyclable ? (
+                  <CheckCircle2 className="w-11 h-11 text-brand-strong" strokeWidth={2.2} />
+                ) : (
+                  <XCircle className="w-11 h-11 text-destructive" strokeWidth={2.2} />
+                )}
+              </motion.div>
 
-              <h3 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{scanResult.item}</h3>
-              <p className="text-gray-600 dark:text-gray-400 mt-1">{scanResult.material}</p>
+              <h3 className="text-[26px] font-bold tracking-[-0.02em] text-foreground">{scanResult.item}</h3>
+              <p className="text-[15px] text-muted-foreground mt-0.5">{scanResult.material}</p>
 
-              {scanResult.confidence && (
-                <div className="mt-2 flex items-center justify-center space-x-2">
-                  <div className="w-32 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+              {scanResult.confidence !== undefined && (
+                <div className="mt-3 flex items-center justify-center gap-2">
+                  <div className="w-36 h-2 bg-muted/20 rounded-full overflow-hidden">
                     <div
                       className={`h-full rounded-full ${
-                        scanResult.confidence >= 80 ? "bg-emerald-500" :
-                        scanResult.confidence >= 50 ? "bg-yellow-500" : "bg-red-500"
+                        scanResult.confidence >= 80
+                          ? "bg-brand"
+                          : scanResult.confidence >= 50
+                          ? "bg-streak"
+                          : "bg-destructive"
                       }`}
                       style={{ width: `${scanResult.confidence}%` }}
                     />
                   </div>
-                  <span className="text-xs text-gray-500 dark:text-gray-500">{scanResult.confidence}%</span>
+                  <span className="numerals text-xs text-muted-foreground">{scanResult.confidence}%</span>
                 </div>
               )}
 
               {scanResult.recyclable && (
-                <div className="mt-4 bg-emerald-50 dark:bg-emerald-950/50 px-6 py-3 rounded-full flex items-center space-x-2">
-                  <Sparkles className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
-                  <span className="text-lg font-bold text-emerald-600 dark:text-emerald-400">+{scanResult.points} Points</span>
+                <div className="mt-4 bg-brand-tint px-5 py-2.5 rounded-full flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-brand-strong" strokeWidth={2.4} />
+                  <span className="numerals text-[17px] font-bold text-brand-strong">
+                    +{scanResult.points} Points
+                  </span>
                 </div>
               )}
             </div>
 
-            {/* Status Card */}
-            <MobileCard className={scanResult.recyclable ? "bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800" : "bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800"}>
-              <div className="flex items-start space-x-3">
-                <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
-                  scanResult.recyclable ? "bg-emerald-500" : "bg-red-500"
-                }`}>
-                  <Info className="w-6 h-6 text-white" />
-                </div>
-                <div className="flex-1">
-                  <p className={`font-semibold ${scanResult.recyclable ? "text-emerald-900 dark:text-emerald-100" : "text-red-900 dark:text-red-100"}`}>
-                    {scanResult.recyclable ? "Recyclable Item" : "Not Recyclable"}
-                  </p>
-                  <p className={`text-sm mt-1 ${scanResult.recyclable ? "text-emerald-700 dark:text-emerald-300" : "text-red-700 dark:text-red-300"}`}>
-                    {scanResult.instructions}
-                  </p>
-                </div>
+            {/* Disposal instructions */}
+            <div
+              className={`rounded-[16px] p-4 flex items-start gap-3 ${
+                scanResult.recyclable ? "bg-brand-tint" : "bg-destructive/10"
+              }`}
+            >
+              <div
+                className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
+                  scanResult.recyclable ? "bg-brand text-white" : "bg-destructive text-white"
+                }`}
+              >
+                <Info className="w-4 h-4" strokeWidth={2.4} />
               </div>
-            </MobileCard>
+              <div className="flex-1">
+                <p
+                  className={`text-[15px] font-semibold ${
+                    scanResult.recyclable ? "text-brand-strong" : "text-destructive"
+                  }`}
+                >
+                  {scanResult.recyclable ? "Recyclable" : "Not Recyclable"}
+                </p>
+                <p className="text-[14px] mt-0.5 text-muted-foreground">{scanResult.instructions}</p>
+              </div>
+            </div>
 
             {/* Environmental Impact */}
             {scanResult.recyclable && (
               <div className="space-y-3">
-                <h4 className="font-semibold text-gray-900 dark:text-gray-100">Environmental Impact</h4>
+                <h4 className="text-[17px] font-bold text-foreground">Environmental Impact</h4>
                 {(() => {
                   const impact = getEnvironmentalImpact(scanResult.material);
                   return (
                     <div className="grid grid-cols-2 gap-3">
-                      <MobileCard className="text-center">
-                        <Award className="w-8 h-8 text-blue-600 dark:text-blue-400 mx-auto mb-2" />
-                        <p className="text-xs text-gray-600 dark:text-gray-400">CO2 Saved</p>
-                        <p className="font-semibold text-gray-900 dark:text-gray-100 text-sm">{impact.co2.toFixed(1)} kg</p>
-                        <p className="text-xs text-gray-500 dark:text-gray-500">~{impact.drivingKm.toFixed(1)} km driving</p>
-                      </MobileCard>
-                      <MobileCard className="text-center">
-                        <Zap className="w-8 h-8 text-yellow-600 dark:text-yellow-400 mx-auto mb-2" />
-                        <p className="text-xs text-gray-600 dark:text-gray-400">Energy Saved</p>
-                        <p className="font-semibold text-gray-900 dark:text-gray-100 text-sm">{impact.energy.toFixed(1)} kWh</p>
-                        <p className="text-xs text-gray-500 dark:text-gray-500">~{impact.phoneCharges} phone charges</p>
-                      </MobileCard>
+                      <div className="bg-card rounded-[16px] p-4 text-center">
+                        <Award className="w-6 h-6 text-info mx-auto mb-2" strokeWidth={2.2} />
+                        <p className="numerals text-[20px] font-bold text-foreground">
+                          {impact.co2.toFixed(1)} kg
+                        </p>
+                        <p className="text-[13px] text-muted-foreground mt-0.5">
+                          CO₂ · ~{impact.drivingKm.toFixed(1)} km driving
+                        </p>
+                      </div>
+                      <div className="bg-card rounded-[16px] p-4 text-center">
+                        <Zap className="w-6 h-6 text-streak mx-auto mb-2" strokeWidth={2.2} />
+                        <p className="numerals text-[20px] font-bold text-foreground">
+                          {impact.energy.toFixed(1)} kWh
+                        </p>
+                        <p className="text-[13px] text-muted-foreground mt-0.5">
+                          · ~{impact.phoneCharges} phone charges
+                        </p>
+                      </div>
                     </div>
                   );
                 })()}
               </div>
             )}
 
-            {/* Action Buttons */}
-            <div className="grid grid-cols-2 gap-3">
-              <Button
-                variant="outline"
-                onClick={handleScanAnother}
-                className="h-12 font-semibold border-2"
-              >
+            {/* Actions */}
+            <div className="grid grid-cols-2 gap-3 pb-2">
+              <Button variant="outline" onClick={handleScanAnother} className="h-[50px] rounded-[14px] text-[17px]">
                 Scan Another
               </Button>
               {scanResult.recyclable && (
-                <Button
-                  onClick={handleConfirm}
-                  className="h-12 font-semibold bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700"
-                >
-                  <CheckCircle2 className="w-5 h-5 mr-2" />
+                <Button onClick={handleConfirm} className="h-[50px] rounded-[14px] text-[17px] btn-brand">
+                  <CheckCircle2 className="w-5 h-5" />
                   Confirm
                 </Button>
               )}

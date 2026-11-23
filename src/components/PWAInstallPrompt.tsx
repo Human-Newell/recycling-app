@@ -59,36 +59,36 @@ export function PWAInstallPrompt() {
         className="fixed bottom-24 left-4 right-4 z-50"
       >
         <MobileCard className="relative overflow-hidden">
-          {/* Gradient background */}
-          <div className="absolute inset-0 bg-gradient-to-br from-emerald-500 to-teal-600 opacity-5" />
-          
+          {/* Brand wash */}
+          <div className="absolute inset-0 bg-brand opacity-5" />
+
           <div className="relative">
             <button
               onClick={handleDismiss}
-              className="absolute top-0 right-0 p-1 rounded-full hover:bg-gray-100 transition-colors"
+              className="absolute top-0 right-0 p-1 rounded-full hover:bg-muted transition-colors"
             >
-              <X className="w-4 h-4 text-gray-500" />
+              <X className="w-4 h-4 text-muted-foreground" />
             </button>
 
             <div className="pr-8">
               <div className="flex items-center space-x-3 mb-3">
-                <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center">
+                <div className="w-12 h-12 btn-brand rounded-xl flex items-center justify-center">
                   <Download className="w-6 h-6 text-white" />
                 </div>
                 <div>
-                  <h3 className="font-bold text-gray-900">Install EcoScan</h3>
-                  <p className="text-xs text-gray-600">Get the full app experience</p>
+                  <h3 className="font-bold text-foreground">Install EcoScan</h3>
+                  <p className="text-xs text-muted-foreground">Get the full app experience</p>
                 </div>
               </div>
 
-              <p className="text-sm text-gray-700 mb-4">
+              <p className="text-sm text-foreground/80 mb-4">
                 Add EcoScan to your home screen for quick access, offline mode, and a native app experience.
               </p>
 
               <div className="flex space-x-2">
                 <Button
                   onClick={handleInstall}
-                  className="flex-1 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white shadow-lg"
+                  className="flex-1 btn-brand shadow-lg"
                 >
                   <Download className="w-4 h-4 mr-2" />
                   Install App
@@ -96,7 +96,7 @@ export function PWAInstallPrompt() {
                 <Button
                   onClick={handleDismiss}
                   variant="outline"
-                  className="border-2 border-gray-200"
+                  className="border-2 border-border"
                 >
                   Later
                 </Button>

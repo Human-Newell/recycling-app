@@ -4,36 +4,61 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no" />
-  
+
   <!-- PWA Meta Tags -->
-  <title>EcoScan - Recycling Tracker</title>
-  <meta name="description" content="Track your recycling impact and earn badges for sustainable living" />
-  <meta name="theme-color" content="#10b981" />
+  <title>EcoScan — Recycling Tracker</title>
+  <meta name="description" content="Scan items, track your recycling impact, and build a streak worth keeping." />
+  <meta name="theme-color" content="#f2f2f7" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <meta name="apple-mobile-web-app-title" content="EcoScan" />
-  
+
+  <!-- Social -->
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="EcoScan — Recycling Tracker" />
+  <meta property="og:description" content="Scan items, track your recycling impact, and build a streak worth keeping." />
+  <meta property="og:image" content="/icon-512.png" />
+
   <!-- iOS Icons -->
   <link rel="apple-touch-icon" href="/icon-192.png" />
   <link rel="apple-touch-icon" sizes="152x152" href="/icon-192.png" />
   <link rel="apple-touch-icon" sizes="180x180" href="/icon-192.png" />
   <link rel="apple-touch-icon" sizes="167x167" href="/icon-192.png" />
-  
+
   <!-- Standard Icons -->
   <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
   <link rel="icon" type="image/png" sizes="512x512" href="/icon-512.png" />
 
-  <!-- iOS Splash Screen -->
   <meta name="mobile-web-app-capable" content="yes" />
-  
-  <!-- Disable tap highlight on iOS -->
+
+  <!-- Inter: SF Pro stand-in for non-Apple platforms only — Apple devices get
+       the real SF via -apple-system. Self-contained fallback below if offline. -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+  />
+
+  <!-- Native-app feel: no tap flash, no rubber-band bleed past the chrome.
+       Pre-paint background keyed to next-themes' class (set synchronously
+       before first paint), NOT prefers-color-scheme, so manual theme choice
+       never flashes black under a light app. -->
   <style>
     * {
       -webkit-tap-highlight-color: transparent;
     }
-    
+
+    html {
+      background: #f2f2f7;
+    }
+
+    html.dark {
+      background: #000000;
+    }
+
     body {
-      overscroll-behavior-y: contain;
+      overscroll-behavior-y: none;
     }
   </style>
 </head>

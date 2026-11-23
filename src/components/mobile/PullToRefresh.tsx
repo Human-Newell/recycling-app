@@ -89,13 +89,11 @@ export function PullToRefresh({ onRefresh, children, className = "" }: PullToRef
                 repeat: isRefreshing ? Infinity : 0,
                 ease: "linear",
               }}
-              className={`flex items-center justify-center w-10 h-10 rounded-full ${
-                pullPercentage >= 100
-                  ? "bg-emerald-500 text-white"
-                  : "bg-emerald-100 text-emerald-600"
-              } shadow-lg`}
+              className={`flex items-center justify-center w-9 h-9 rounded-full shadow-float chrome-blur ${
+                pullPercentage >= 100 ? "text-brand-strong" : "text-muted-foreground"
+              }`}
             >
-              <RefreshCw className="w-5 h-5" />
+              <RefreshCw className="w-4 h-4" strokeWidth={2.4} />
             </motion.div>
           </motion.div>
         )}

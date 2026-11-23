@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client'
+import { setPushDistinctId } from '@/services/pushIdentity'
 
 export interface PushSubscriptionResult {
   ok: boolean
@@ -7,6 +8,8 @@ export interface PushSubscriptionResult {
 
 // Web Push applicationServerKey expects the raw key bytes, so the VAPID
 // public key must be decoded from base64url.
+// Typed as <ArrayBuffer> (not the generic default ArrayBufferLike) so it
+// satisfies BufferSource under the newer TS lib definitions.
 function urlBase64ToUint8Array(base64String: string): Uint8Array<ArrayBuffer> {
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4)
   const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/')
@@ -59,6 +62,12 @@ export async function subscribeToPush(): Promise<PushSubscriptionResult> {
     if (userError || !userData?.user) {
       return { ok: false, reason: 'not-authenticated' }
     }
+
+    // Persist the Supabase user id as the PostHog distinct id so the service
+    // worker can attribute push_received / push_clicked events to this user
+    // (the SW has no localStorage and cannot run the analytics client).
+    // Fire-and-forget: an IndexedDB failure must never fail the subscription.
+    void setPushDistinctId(userData.user.id).catch(() => {})
 
     const json = subscription.toJSON()
     const keys = json.keys as { p256dh?: string; auth?: string } | undefined

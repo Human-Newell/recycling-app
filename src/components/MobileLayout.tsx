@@ -1,6 +1,5 @@
 import { ReactNode } from "react";
 import { MobileNavigation } from "./mobile/MobileNavigation";
-import { FloatingActionButton } from "./mobile/FloatingActionButton";
 import { SidebarNavigation } from "./desktop/SidebarNavigation";
 
 interface MobileLayoutProps {
@@ -10,13 +9,13 @@ interface MobileLayoutProps {
 
 export default function MobileLayout({ children, showNav = true }: MobileLayoutProps) {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-teal-50 dark:from-emerald-950 dark:via-gray-950 dark:to-teal-950 transition-colors">
+    <div className="app-canvas min-h-screen transition-colors">
       {/* md+: persistent left sidebar (hidden below md) */}
       {showNav && <SidebarNavigation />}
       <main
         className={
           showNav
-            ? "pb-20 md:pb-0 md:pl-64 min-h-screen md:h-screen md:overflow-y-auto md:overflow-x-hidden"
+            ? "pb-[calc(64px+env(safe-area-inset-bottom))] md:pb-0 md:pl-64 min-h-screen md:h-screen md:overflow-y-auto md:overflow-x-hidden"
             : "min-h-screen"
         }
       >
@@ -26,7 +25,6 @@ export default function MobileLayout({ children, showNav = true }: MobileLayoutP
         </div>
       </main>
       {showNav && <MobileNavigation />}
-      {showNav && <FloatingActionButton />}
     </div>
   );
 }

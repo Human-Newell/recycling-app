@@ -1,2 +1,10 @@
 packages:
   - '.'
+overrides:
+  fast-uri: ^3.1.9
+  postcss-selector-parser: ^6.1.5
+  serialize-javascript: ^7.1.3
+  minimatch@10: ^11.0.1
+allowBuilds:
+  core-js: false # postinstall only prints a funding notice
+  esbuild: false # binary ships via optional @esbuild/* platform packages

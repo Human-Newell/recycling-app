@@ -1,4 +1,5 @@
-import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
+import { useEffect } from "react";
+import { BrowserRouter, Routes, Route, useLocation, useParams } from "react-router-dom";
 import { Toaster } from "sonner";
 import { AnimatePresence, motion } from "framer-motion";
 import { ThemeProvider, useTheme } from "next-themes";
@@ -8,32 +9,21 @@ import ScanPage from "@/pages/ScanPage";
 import HistoryPage from "@/pages/HistoryPage";
 import ProfilePage from "@/pages/ProfilePage";
 import MobileLayout from "@/components/MobileLayout";
+import { DevPreviewRouter } from "@/components/home/DevPreview";
 import { PWAInstallPrompt } from "@/components/PWAInstallPrompt";
 import { NotificationPermissionPrompt } from "@/components/NotificationPermissionPrompt";
 
 function AnimatedRoutes() {
   const location = useLocation();
 
+  // iOS-feel page change: quick, restrained, no slide theatrics.
   const pageVariants = {
-    initial: {
-      opacity: 0,
-      x: 20,
-    },
-    animate: {
-      opacity: 1,
-      x: 0,
-    },
-    exit: {
-      opacity: 0,
-      x: -20,
-    },
+    initial: { opacity: 0, y: 10 },
+    animate: { opacity: 1, y: 0 },
+    exit: { opacity: 0 },
   };
 
-  const pageTransition = {
-    type: "tween" as const,
-    ease: "anticipate" as const,
-    duration: 0.3,
-  };
+  const pageTransition = { type: "tween" as const, ease: "easeOut" as const, duration: 0.2 };
 
   return (
     <AnimatePresence mode="wait">
@@ -41,13 +31,7 @@ function AnimatedRoutes() {
         <Route
           path="/"
           element={
-            <motion.div
-              initial="initial"
-              animate="animate"
-              exit="exit"
-              variants={pageVariants}
-              transition={pageTransition}
-            >
+            <motion.div initial="initial" animate="animate" exit="exit" variants={pageVariants} transition={pageTransition}>
               <HomePage />
             </motion.div>
           }
@@ -55,13 +39,7 @@ function AnimatedRoutes() {
         <Route
           path="/scan"
           element={
-            <motion.div
-              initial="initial"
-              animate="animate"
-              exit="exit"
-              variants={pageVariants}
-              transition={pageTransition}
-            >
+            <motion.div initial="initial" animate="animate" exit="exit" variants={pageVariants} transition={pageTransition}>
               <ScanPage />
             </motion.div>
           }
@@ -69,13 +47,7 @@ function AnimatedRoutes() {
         <Route
           path="/history"
           element={
-            <motion.div
-              initial="initial"
-              animate="animate"
-              exit="exit"
-              variants={pageVariants}
-              transition={pageTransition}
-            >
+            <motion.div initial="initial" animate="animate" exit="exit" variants={pageVariants} transition={pageTransition}>
               <HistoryPage />
             </motion.div>
           }
@@ -83,13 +55,7 @@ function AnimatedRoutes() {
         <Route
           path="/profile"
           element={
-            <motion.div
-              initial="initial"
-              animate="animate"
-              exit="exit"
-              variants={pageVariants}
-              transition={pageTransition}
-            >
+            <motion.div initial="initial" animate="animate" exit="exit" variants={pageVariants} transition={pageTransition}>
               <ProfilePage />
             </motion.div>
           }
@@ -97,17 +63,12 @@ function AnimatedRoutes() {
         <Route
           path="/badges"
           element={
-            <motion.div
-              initial="initial"
-              animate="animate"
-              exit="exit"
-              variants={pageVariants}
-              transition={pageTransition}
-            >
+            <motion.div initial="initial" animate="animate" exit="exit" variants={pageVariants} transition={pageTransition}>
               <ProfilePage focusBadges />
             </motion.div>
           }
         />
+        {import.meta.env.DEV && <Route path="/__preview/:which" element={<DevPreviewRouter />} />}
       </Routes>
     </AnimatePresence>
   );
@@ -115,14 +76,27 @@ function AnimatedRoutes() {
 
 // Reads theme from next-themes (which respects manual toggles via ProfilePage)
 // instead of sonner's hardcoded "system", so toasts match the app theme.
+// Also keeps the iOS/PWA status-bar tint in sync with light/dark.
 function ThemedToaster() {
   const { resolvedTheme } = useTheme();
+
+  useEffect(() => {
+    const meta = document.querySelector('meta[name="theme-color"]');
+    meta?.setAttribute("content", resolvedTheme === "dark" ? "#000000" : "#f2f2f7");
+  }, [resolvedTheme]);
+
   return (
     <Toaster
       position="top-center"
       richColors
       closeButton
       theme={(resolvedTheme as "light" | "dark") || "system"}
+      toastOptions={{
+        style: {
+          borderRadius: "16px",
+          fontFamily: "inherit",
+        },
+      }}
     />
   );
 }

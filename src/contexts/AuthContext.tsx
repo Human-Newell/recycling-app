@@ -3,6 +3,7 @@ import { Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { notificationService } from '@/services/notificationService';
 import { flushQueue } from '@/services/offlineQueue';
+import { clearPushDistinctId } from '@/services/pushIdentity';
 import { toast } from 'sonner';
 
 const AUTH_UNAVAILABLE = 'Authentication is not configured. Please contact support.';
@@ -37,15 +38,19 @@ export interface UserProfile {
   total_scans?: number;
   badges_earned?: number;
   created_at?: string;
+  // UI style mode ('play' | 'chic') synced with StyleModeContext when signed in.
+  // Optional: absent when the 007 migration has not run yet, which leaves the
+  // local (localStorage) choice untouched.
+  style_mode?: 'play' | 'chic';
 }
 
-interface User extends UserProfile {
+export interface User extends UserProfile {
   recyclingHistory: RecyclingEntry[];
   badges: Badge[];
 }
 
 // AuthContext interface
-interface AuthContextType {
+export interface AuthContextType {
   user: User | null;
   session: Session | null;
   isAuthenticated: boolean;
@@ -59,10 +64,13 @@ interface AuthContextType {
   refreshUser: () => Promise<void>;
   getPointsForMaterial: (material: string) => number;
   syncOfflineEntries: () => Promise<number>;
+  // Best-effort persist of the style mode to the profile row (see
+  // StyleModeContext). Fire-and-forget — never blocks or surfaces errors.
+  setUserStyleMode: (mode: 'play' | 'chic') => Promise<void>;
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
+// Exported so dev-only previews can override auth with stub data.
+export const AuthContext = createContext<AuthContextType | undefined>(undefined);
 // AuthProvider component
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
@@ -182,6 +190,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         created_at: profile.created_at,
         total_scans: totalScans,
         badges_earned: badgesEarned,
+        style_mode: profile.style_mode,
         recyclingHistory: recyclingEntries?.map(entry => ({
           id: entry.id,
           item: entry.item,
@@ -291,6 +300,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const logout = async (): Promise<void> => {
     if (!supabase) return;
     await supabase.auth.signOut();
+    // Stop attributing SW-side push events to this device's last user.
+    void clearPushDistinctId().catch(() => {});
   };
 
   // Recycling and badge logic
@@ -550,6 +561,30 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
 
+  // --- Style mode sync (consumed by StyleModeContext) ---
+
+  // Best-effort persist of the style mode: optimistically apply it to local
+  // user state, then PATCH the profile row. On failure the optimistic local
+  // value stays and the next profile reload settles any divergence — never
+  // blocks or toasts. Signed-out callers are a no-op (localStorage only).
+  const setUserStyleMode = useCallback(async (mode: 'play' | 'chic') => {
+    if (!supabase || !user) return;
+    setUser((prev) => (prev && prev.style_mode !== mode ? { ...prev, style_mode: mode } : prev));
+
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ style_mode: mode })
+        .eq('id', user.id);
+
+      if (error) {
+        console.error('Error syncing style mode:', error);
+      }
+    } catch (error) {
+      console.error('Error syncing style mode:', error);
+    }
+  }, [user]);
+
   const refreshUser = async () => {
     if (user) {
       await loadUserProfile(user.id);
@@ -570,7 +605,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       recyclingHistory: user?.recyclingHistory || [],
       refreshUser,
       getPointsForMaterial,
-      syncOfflineEntries
+      syncOfflineEntries,
+      setUserStyleMode
     }}>
       {children}
     </AuthContext.Provider>

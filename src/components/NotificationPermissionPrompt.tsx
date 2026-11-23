@@ -67,36 +67,36 @@ export function NotificationPermissionPrompt() {
         className="fixed bottom-24 left-4 right-4 z-50"
       >
         <MobileCard className="relative overflow-hidden shadow-2xl">
-          {/* Gradient background */}
-          <div className="absolute inset-0 bg-gradient-to-br from-blue-500 to-purple-600 opacity-5" />
-          
+          {/* Info wash */}
+          <div className="absolute inset-0 bg-info opacity-5" />
+
           <div className="relative">
             <button
               onClick={handleDismiss}
-              className="absolute top-0 right-0 p-1 rounded-full hover:bg-gray-100 transition-colors"
+              className="absolute top-0 right-0 p-1 rounded-full hover:bg-muted transition-colors"
             >
-              <X className="w-4 h-4 text-gray-500" />
+              <X className="w-4 h-4 text-muted-foreground" />
             </button>
 
             <div className="pr-8">
               <div className="flex items-center space-x-3 mb-3">
-                <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center">
+                <div className="w-12 h-12 bg-info rounded-xl flex items-center justify-center">
                   <Bell className="w-6 h-6 text-white" />
                 </div>
                 <div>
-                  <h3 className="font-bold text-gray-900">Enable Notifications</h3>
-                  <p className="text-xs text-gray-600">Stay updated on your progress</p>
+                  <h3 className="font-bold text-foreground">Enable Notifications</h3>
+                  <p className="text-xs text-muted-foreground">Stay updated on your progress</p>
                 </div>
               </div>
 
-              <p className="text-sm text-gray-700 mb-4">
+              <p className="text-sm text-foreground/80 mb-4">
                 Get notified when you unlock badges, reach milestones, and achieve streaks!
               </p>
 
               <div className="flex space-x-2">
                 <Button
                   onClick={handleEnable}
-                  className="flex-1 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white shadow-lg"
+                  className="flex-1 bg-info text-white hover:bg-info/90 shadow-lg"
                 >
                   <Bell className="w-4 h-4 mr-2" />
                   Enable
@@ -104,7 +104,7 @@ export function NotificationPermissionPrompt() {
                 <Button
                   onClick={handleDismiss}
                   variant="outline"
-                  className="border-2 border-gray-200"
+                  className="border-2 border-border"
                 >
                   Later
                 </Button>
