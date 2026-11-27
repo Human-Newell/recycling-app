@@ -1,0 +1,79 @@
+# EcoScan smoke flow — Android emulator lane (unauthenticated)
+#
+# Runs the PWA in Chrome on a headless AVD against a locally served build:
+#
+#   pnpm build
+#   npx vite preview --port 4180 --strictPort --host 0.0.0.0
+#   emulator: $ANDROID_HOME/emulator/emulator -avd <avd-name> -port 5556 \
+#     -no-window -no-audio -gpu swiftshader_indirect -no-snapshot -no-boot-anim
+#
+#   maestro test --udid emulator-5556 maestro/ecoscan-smoke.yaml
+#     (--udid required whenever more than one emulator is attached —
+#      otherwise Maestro picks an arbitrary device)
+#
+# Lane notes:
+#   - Maestro text matcher chokes on unicode -> assert ASCII fragments only
+#     (page titles use em-dashes; never match them)
+#   - Conditional UI (notification prompt) gated via runFlow + when.visible
+#   - Unauthenticated path only: no Supabase writes
+#   - Chrome drops its web-content accessibility tree for plain
+#     `adb uiautomator dump` after the first in-page navigation; trust
+#     Maestro's own hierarchy + screenshots instead
+#   - signed-out /badges renders the same ProfilePage gate as /profile
+#     (badges are auth-gated) — assert the gate text, not a route name
+
+appId: com.android.chrome
+name: EcoScan smoke (unauthenticated)
+
+---
+- launchApp:
+    appId: com.android.chrome
+    clearState: false
+
+- openLink: http://10.0.2.2:4180/
+
+# Landing page
+- assertVisible: "EcoScan"
+- assertVisible: "Get Started"
+
+# Chrome first-run dialogs (only on fresh AVD) — dismiss if present
+- runFlow:
+    when:
+      visible: "Use without an account"
+    commands:
+      - tapOn: "Use without an account"
+- runFlow:
+    when:
+      visible: "No thanks"
+    commands:
+      - tapOn: "No thanks"
+
+# Notification permission card on landing — dismiss if present
+- runFlow:
+    when:
+      visible: "Later"
+    commands:
+      - tapOn: "Later"
+
+# Auth modal opens and closes
+- tapOn: "Get Started"
+- assertVisible: "Welcome Back"
+- assertVisible: "Sign in to continue your recycling journey"
+- tapOn:
+    point: 50%, 12%   # outside the dialog -> onOpenChange(false)
+
+# Route sweep: each page renders its signed-out state
+- openLink: http://10.0.2.2:4180/scan
+- assertVisible: "Identifying the material|Scan"
+
+- openLink: http://10.0.2.2:4180/history
+- assertVisible: "Sign in to view activity"
+
+- openLink: http://10.0.2.2:4180/profile
+- assertVisible: "Sign in to view profile"
+
+# signed-out /badges renders the same ProfilePage gate as /profile
+# (badges section is auth-gated) — assert the rendered gate, not the route name
+- openLink: http://10.0.2.2:4180/badges
+- waitForAnimationToEnd
+- assertVisible: "Sign in to view profile"
